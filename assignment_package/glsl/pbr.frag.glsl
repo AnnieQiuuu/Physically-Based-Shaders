@@ -35,6 +35,9 @@ out vec4 out_Col;
 
 const float PI = 3.14159f;
 
+vec3 FresnelSchlickRoughness(float cosTheta, vec3 R, float roughness){
+    return R + (max(vec3(1.0 - roughness),R)-R)* pow(clamp(1.0-cosTheta,0.0,1.0),5.0);
+}
 // Set the input material attributes to texture-sampled values
 // if the indicated booleans are TRUE
 void handleMaterialMaps(inout vec3 albedo, inout float metallic,
@@ -54,18 +57,47 @@ void handleMaterialMaps(inout vec3 albedo, inout float metallic,
     }
     if(u_UseNormalMap) {
         // TODO: Apply normal mapping
+        vec3 tangentNormal = texture(u_NormalMap, fs_UV).xyz * 2.0 - 1.0;
+        mat3 TBN = mat3(normalize(fs_Tan), normalize(fs_Bit), normalize(normal));
+        normal = normalize(TBN * tangentNormal);
     }
 }
 
 void main()
 {
     vec3  N                = fs_Nor;
+    // The ray traveling from the point being shaded to the camera
+    vec3  wo               = normalize(u_CamPos - fs_Pos);
     vec3  albedo           = u_Albedo;
     float metallic         = u_Metallic;
     float roughness        = u_Roughness;
     float ambientOcclusion = u_AmbientOcclusion;
 
     handleMaterialMaps(albedo, metallic, roughness, ambientOcclusion, N);
+    //diffuse part
+    vec3 irradiance = texture(u_DiffuseIrradianceMap, N).rgb;
+    vec3 diffuse = irradiance * albedo;
 
-    out_Col = vec4(1.f);
+    // Specular IBL
+    // The innate material color used in the Fresnel reflectance function
+    vec3 R = mix(vec3(0.04), albedo, metallic);
+    vec3 F = FresnelSchlickRoughness(max(dot(N, wo), 0.0), R ,roughness);
+    vec3 ks = F;
+    vec3 kd = 1.0 - ks;
+    kd *= 1.0 - metallic;
+
+    float maxMipLevels = 4.0;
+    vec3 prefilteredColor = textureLod(u_GlossyIrradianceMap, reflect(-wo, N), roughness * maxMipLevels).rgb;
+
+    vec2 brdf = texture(u_BRDFLookupTexture, vec2(max(dot(N, wo), 0.0), roughness)).rg;
+
+    vec3 specular = prefilteredColor *(ks * brdf.x + brdf.y);
+    vec3 ambient = ambientOcclusion * (kd * diffuse + specular);
+    vec3 color = ambient;
+    color = ambient/(ambient + vec3(1.0));
+
+    color = pow(color, vec3(1.0 / 2.2));
+
+    out_Col = vec4(color, 1.0);
+
 }

@@ -1,7 +1,28 @@
+Name: Annie Qiu
+Pennkey: annieqiu
+======================
 Physically-Based Shaders Part II: Environment Maps
 ======================
 
 **University of Pennsylvania, CIS 561: Advanced Computer Graphics, Homework 7**
+
+My results
+------------
+0% metallic, 0% rough, RBG = 1 1 1
+
+![](./results/pic1.png)
+
+100% metallic, 0% rough, RGB = 1 1 1
+
+![](./results/pic2.png)
+
+100% metallic, 25% rough, RGB = 1 1 1
+
+![](./results/pic3.png)
+
+cerberus.json
+
+![](./results/pic4.png)
 
 Overview
 ------------
